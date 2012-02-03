@@ -85,7 +85,7 @@ sub preprocess (@) {
     $template->param(src => $audio); # <audio src=""></audio>
     $template->param(class => $params{class}); # el usuario final puede difinir su proprio `class`	
     # convertir entre ogg y un mp3
-    $template = convert($audio, $template); 
+    #$template = convert($audio, $template); 
     # consiguir las etiquetas de las audios
     $template = get_tags($audio,$template);
     #devolver html 
@@ -161,46 +161,47 @@ sub convert (@) {
 
 sub get_tags ($) {
     # obtener etiqutas del audio y agregarlos al html.
-    # read-metadata.pl es parte de gstreamer-perl
     my $file=shift;
     my $template=shift;
-
+    my $MD;
+    my @files;
+    push(@files, $file);
     if (!-e $file) {
         if ($file =~ /http:\/\//){
             print "got a hold on $file\n";
-            open(MD,"/usr/local/bin/read-metadata.pl $file|") || die "Failed http: $!\n";
+            #open(MD,"/usr/local/bin/read-metadata.pl $file|") || die "Failed http: $!\n";
+	    $MD = &gst_metadata(\@files);
         } else {
                 print  "Cant get a handle: $!\n";
                 print  "Try abs path:\n";
                 print "$ENV{HOME}/$config{srcdir}/$file\n";
                 $file = "$ENV{HOME}/$config{srcdir}/$file";
-                open(MD,"/usr/local/bin/read-metadata.pl $file|") || die "Failed: $!\n";
+                #open(MD,"/usr/local/bin/read-metadata.pl $file|") || die "Failed: $!\n";
+	        $MD = &gst_metadata(\@files);
         }
     } else {
         print "got a hold on $file\n";
-        open(MD,"/usr/local/bin/read-metadata.pl $file|") || die "Failed: $!\n";
+        #open(MD,"/usr/local/bin/read-metadata.pl $file|") || die "Failed: $!\n";
+	$MD = &gst_metadata(\@files);
     }
-    #my @tags = ();
-    while ( <MD> ) {
-       my ( $key, $value ) = split(/:/);
-       if ($key && $value) {
-
-            $key =~ s/^\s+//;
-            $key =~ s/\s+$//;
-            $value =~ s/^\s+//;
-            $value =~ s/\s+$//;
-            print $key, ":", $value, "\n";
+    my %data = %{$MD};
+    foreach  my $key ( keys %data) {
+       if ($key && @{$data{$key}}) {
+       print $key, ":", @{$data{$key}}, "\n";
+     
        }else{
           print "[audio] metadata error:  $!"
        
        }
-       $template->param($key => $value);
+       $template->param($key => @{$data{$key}});
        foreach my $tag (@savetags) {
            if ( $template->param($tag) ) {
                $template->param(tags => "al huevo");
+	       # this should probaly set the tags instead of setting `al huevo` :)                 
             }
        }
-	}
+    }
+
     return $template;
 }
 
@@ -252,4 +253,135 @@ sub include_javascript ($;$) {
 	'<link href="'.urlto('jplayer/jplayer.blue.monday.css', $page). 
 	'" type="text/css" rel="stylesheet">';
 }
+
+sub gst_metadata {
+# This is a Perl port of an example found in the gstreamer-0.9.6 tarball.
+# Original and current copyright:
+# GStreamer
+# Copyright (C) 2003 Thomas Vander Stichele <thomas@apestaart.org>
+#               2003 Benjamin Otte <in7y118@public.uni-hamburg.de>
+#               2005 Andy Wingo <wingo@pobox.com>
+#               2005 Jan Schmidt <thaytan@mad.scientist.com>
+# gst-metadata.c: Use GStreamer to display metadata within files.
+
+   use Glib qw(TRUE FALSE);
+   use GStreamer qw(GST_MSECOND);
+   my $ref = shift;
+   my @list = @{$ref};
+   my ($filename, $pipeline, $source, $tags);
+   
+   GStreamer -> init();
+   
+   if ($#list < 0) {
+     print "Please give filenames to read metadata from\n";
+     exit 1;
+   }
+   
+   foreach (@list) {
+     print "element of list: $_\n";
+     if (m/http:\/\//){
+         ($pipeline, $source) = make_pipeline("http", $pipeline, $source);
+     } else {
+         ($pipeline, $source) = make_pipeline("file", $pipeline, $source);
+     }
+     $filename = $_;
+     $source -> set(location => Glib::filename_to_unicode $filename);
+      
+     # Decodebin will only commit to PAUSED if it actually finds a type;
+     # otherwise the state change fails
+     my $sret = $pipeline -> set_state("paused");
+   
+     if ("async" eq $sret) {
+       ($sret, undef, undef) = $pipeline -> get_state(5000 * GST_MSECOND);
+     }
+   
+     if ("success" ne $sret) {
+       printf "%s - Could not read file\n", $filename;
+       next;
+     }
+   
+     $tags = message_loop($pipeline);
+   
+     unless (defined $tags) {
+       printf "No metadata found for %s\n", Glib::filename_display_name $_;
+     }
+     #map { print_tag($tags, $_) } keys %$tags; #test tags
+   
+     $pipeline -> set_state("null");
+   }
+   return $tags;
+}
+sub message_loop {
+     my ($element) = @_;
+   
+     my $tags = {};
+     my $done = FALSE;
+   
+     my $bus = $element -> get_bus();
+   
+     return undef unless defined $bus;
+     return undef unless defined $tags;
+   
+     while (!$done) {
+       my $message = $bus -> poll("any", 0);
+       unless (defined $message) {
+         # All messages read, we're done
+         last;
+       }
+   
+       if ($message -> type & "eos") {
+         # End of stream, no tags found yet -> return undef
+         return undef;
+       }
+       if ($message -> type & "error") {
+         # decodebin complains about not having an element attached to its output.
+         # Sometimes this happens even before the "tag" message, so just continue.
+         next;
+       }
+       elsif ($message -> type & "tag") {
+         my $new_tags = $message -> tag_list();
+         foreach (keys %$new_tags) {
+           unless (exists $tags -> { $_ }) {
+             $tags -> { $_ } = $new_tags -> { $_ };
+           }
+         }
+       }
+     }
+   
+     return $tags;
+}
+   
+sub make_pipeline {
+     my $decodebin;
+     my $f_source = shift;
+     my $pipeline = shift; 
+     my $source = shift; 
+     $pipeline = GStreamer::Pipeline -> new(undef);
+     
+     if ($f_source eq "http") {
+     ($source, $decodebin) =
+       GStreamer::ElementFactory -> make(souphttpsrc => "source",
+                                         decodebin => "decodebin");
+     } else {
+     ($source, $decodebin) =
+       GStreamer::ElementFactory -> make(filesrc => "source",
+                                         decodebin => "decodebin");
+       
+     }
+   
+     $pipeline -> add($source, $decodebin);
+     $source -> link($decodebin);
+     return $pipeline, $source; 
+}
+   
+sub print_tag {
+     my ($list, $tag) = @_;
+   
+     foreach (@{$list -> { $tag }}) {
+       if (defined $_) {
+         printf "  %15s: %s\n", ucfirst $tag, $_;
+       }
+     }
+}
+ 
 1
