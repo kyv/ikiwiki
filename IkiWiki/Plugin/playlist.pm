@@ -262,13 +262,14 @@ sub include_javascript ($;$) {
     my $page=shift;
     my $absolute=shift;
 
-    return '<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4/jquery.min.js"'.
-        '" type="text/javascript" charset="utf-8"></script>'."\n".
+    return '<script src="'.urlto('ikiwiki/jquery.min.js', $page).
+        '" type="text/javascript" charset="utf-8"></script>'. "\n" .
         '<script src="'.urlto('ikiwiki/jquery.jplayer.min.js', $page).
         '" type="text/javascript" charset="utf-8"></script>'. "\n" .
-	'<link href="'.urlto('jplayer/jplayer.blue.monday.css', $page). 
+	'<link href="'.urlto('ikiwiki/blue.monday/jplayer.blue.monday.css', $page). 
 	'" type="text/css" rel="stylesheet">';
 }
+
 sub get_static_pls {  
     use File::Basename;
     my $pls = shift;
