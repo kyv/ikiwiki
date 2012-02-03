@@ -19,7 +19,7 @@ my $urlmp3 = "";
 # llamamos a los `hooks` de ikiwiki de procesamiento del plugin
 sub import {
 	# underlay = ficheros estaticos incluidos en el wiki
-	add_underlay("javascript");
+	add_underlay("jplayer");
 	# opicones de configuracion para el plugin 
 	hook(type => "getsetup", id => "audio", call => \&getsetup);
 	# la mayor parte de la logica del plugin, que devuelva salida de la plantilla
@@ -47,7 +47,7 @@ sub preprocess (@) {
 	}
 	add_link($params{page}, $audio);
 	add_depends($params{page}, $audio);
-	# optimisation: detectar modo escanear y no generar el audio 
+	# optimisacion: detectar modo escanear y no generar el audio 
 	if (! defined wantarray) {
 		return;
 	}
@@ -85,7 +85,7 @@ sub preprocess (@) {
     $template->param(src => $audio); # <audio src=""></audio>
     $template->param(class => $params{class}); # el usuario final puede difinir su proprio `class`	
     # convertir entre ogg y un mp3
-    #$template = convert($audio, $template); 
+    $template = convert($audio, $template); 
     # consiguir las etiquetas de las audios
     $template = get_tags($audio,$template);
     #devolver html 
@@ -169,19 +169,16 @@ sub get_tags ($) {
     if (!-e $file) {
         if ($file =~ /http:\/\//){
             print "got a hold on $file\n";
-            #open(MD,"/usr/local/bin/read-metadata.pl $file|") || die "Failed http: $!\n";
 	    $MD = &gst_metadata(\@files);
         } else {
                 print  "Cant get a handle: $!\n";
                 print  "Try abs path:\n";
                 print "$ENV{HOME}/$config{srcdir}/$file\n";
                 $file = "$ENV{HOME}/$config{srcdir}/$file";
-                #open(MD,"/usr/local/bin/read-metadata.pl $file|") || die "Failed: $!\n";
 	        $MD = &gst_metadata(\@files);
         }
     } else {
         print "got a hold on $file\n";
-        #open(MD,"/usr/local/bin/read-metadata.pl $file|") || die "Failed: $!\n";
 	$MD = &gst_metadata(\@files);
     }
     my %data = %{$MD};
@@ -193,7 +190,7 @@ sub get_tags ($) {
           print "[audio] metadata error:  $!"
        
        }
-       $template->param($key => @{$data{$key}});
+       $template->param($key => "@{$data{$key}}");
        foreach my $tag (@savetags) {
            if ( $template->param($tag) ) {
                $template->param(tags => "al huevo");
@@ -231,7 +228,7 @@ my $string = <<STRING;
        });
      },
      swfPath: "/jplayer",
-     supplied: "mp3, oga",
+     supplied: "oga, mp3",
      cssSelectorAncestor: "#jp_interface" 
    });
  });
@@ -246,11 +243,11 @@ sub include_javascript ($;$) {
     my $page=shift;
     my $absolute=shift;
 
-    return '<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4/jquery.min.js"'.
-        '" type="text/javascript" charset="utf-8"></script>'."\n".
+    return '<script src="'.urlto('ikiwiki/jquery.min.js', $page).
+        '" type="text/javascript" charset="utf-8"></script>'. "\n" .
         '<script src="'.urlto('ikiwiki/jquery.jplayer.min.js', $page).
         '" type="text/javascript" charset="utf-8"></script>'. "\n" .
-	'<link href="'.urlto('jplayer/jplayer.blue.monday.css', $page). 
+	'<link href="'.urlto('ikiwiki/blue.monday/jplayer.blue.monday.css', $page). 
 	'" type="text/css" rel="stylesheet">';
 }
 
