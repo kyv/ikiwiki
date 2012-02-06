@@ -1,0 +1,78 @@
+div.jp-audio {
+	width:300px;
+}
+div.jp-audio div.jp-type-single div.jp-interface {
+	height:60px;
+}
+div.jp-audio div.jp-type-playlist div.jp-interface {
+	height:60px;
+}
+div.jp-audio ul.jp-controls {
+	width: 380px;
+	padding:10px 10px 0 10px;
+}
+
+div.jp-progress {
+	overflow:hidden;
+	background-color: #ddd;
+}
+div.jp-audio div.jp-progress {
+	position: absolute;
+	top:15px;
+	height:15px;
+}
+div.jp-audio div.jp-type-single div.jp-progress {
+	left:110px;
+	width:100px;
+}
+div.jp-audio div.jp-type-single a.jp-mute,
+div.jp-audio div.jp-type-single a.jp-unmute {
+	margin-left: 140px;	
+}
+div.jp-audio div.jp-volume-bar {
+	top:30px;
+	left:250px;
+}
+div.jp-current-time,
+div.jp-duration {
+	width:60px;
+	font-size:.64em;
+	font-style:oblique;
+}
+div.jp-current-time {
+	float: left;
+	display:inline;
+        margin-left: 100px;
+  	position: relative;
+	top: -10px;
+}
+div.jp-duration {
+	float: right;
+	display:inline;
+	text-align: right;
+	margin-right: 60px;
+  	position: relative;
+	top: -10px;
+}
+div.jp-controls-holder {
+	clear: both;
+	width:250px;
+	margin:0 auto;
+	position: relative;
+	overflow:hidden;
+	top:-8px; /* This negative value depends on the size of the text in jp-currentTime and jp-duration */
+}
+
+div.jp-interface ul.jp-controls {
+	list-style-type:none;
+	margin:0;
+	padding: 0;
+	overflow:hidden;
+}
+
+div.jp-audio ul.jp-controls {
+	width: 250px;
+	padding:10px 10px 0 10px;
+}
+
+

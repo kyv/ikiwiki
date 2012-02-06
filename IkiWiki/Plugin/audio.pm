@@ -285,6 +285,8 @@ sub include_javascript ($;$) {
         '<script src="'.urlto('ikiwiki/jquery.jplayer.min.js', $page).
         '" type="text/javascript" charset="utf-8"></script>'. "\n" .
 	'<link href="'.urlto('ikiwiki/blue.monday/jplayer.blue.monday.css', $page). 
+	'" type="text/css" rel="stylesheet">'. "\n" .
+        '<link href="'.urlto('ikiwiki/blue.monday/jplayer.blue.monday.small.css', $page). 
 	'" type="text/css" rel="stylesheet">';
 }
 
