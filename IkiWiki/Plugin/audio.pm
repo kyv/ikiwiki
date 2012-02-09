@@ -206,17 +206,17 @@ sub get_tags ($) {
     if (!-e $file) {
         if ($file =~ /http:\/\//){
             print "got a hold on $file\n";
-	    $MD = &gst_metadata(\@files);
+	    $TAGS = &get_metadata(\@files);
         } else {
                 print  "Cant get a handle: $!\n";
                 print  "Try abs path:\n";
                 print "$ENV{HOME}/$config{srcdir}/$file\n";
                 $file = "$ENV{HOME}/$config{srcdir}/$file";
-	        $MD = &gst_metadata(\@files);
+	        $TAGS = &get_metadata(\@files);
         }
     } else {
         print "got a hold on $file\n";
-	$MD = &gst_metadata(\@files);
+	$TAGS = &get_metadata(\@files);
     }
     my %data = %{$MD};
     foreach  my $key ( keys %data) {
@@ -290,116 +290,20 @@ sub include_javascript ($;$) {
 	'" type="text/css" rel="stylesheet">';
 }
 
-sub gst_metadata {
-# based on read-metadata.pl, example found in perl-gst source
-   use Glib qw(TRUE FALSE);
-   use GStreamer qw(GST_MSECOND);
-   my $ref = shift;
-   my @list = @{$ref};
-   my ($filename, $pipeline, $source, $tags);
-   
-   GStreamer -> init();
-   
-   if ($#list < 0) {
-     print "Please give filenames to read metadata from\n";
-     exit 1;
-   }
-   
-   foreach (@list) {
-     print "element of list: $_\n";
-     if (m/http:\/\//){
-         ($pipeline, $source) = make_pipeline("http", $pipeline, $source);
-     } else {
-         ($pipeline, $source) = make_pipeline("file", $pipeline, $source);
-     }
-     $filename = $_;
-     $source -> set(location => Glib::filename_to_unicode $filename);
-      
-     # Decodebin will only commit to PAUSED if it actually finds a type;
-     # otherwise the state change fails
-     my $sret = $pipeline -> set_state("paused");
-   
-     if ("async" eq $sret) {
-       ($sret, undef, undef) = $pipeline -> get_state(5000 * GST_MSECOND);
-     }
-   
-     if ("success" ne $sret) {
-       printf "%s - Could not read file\n", $filename;
-       next;
-     }
-   
-     $tags = message_loop($pipeline);
-   
-     unless (defined $tags) {
-       printf "No metadata found for %s\n", Glib::filename_display_name $_;
-     }
-     #map { print_tag($tags, $_) } keys %$tags; #test tags
-   
-     $pipeline -> set_state("null");
-   }
-   return $tags;
-}
-sub message_loop {
-     my ($element) = @_;
-   
-     my $tags = {};
-     my $done = FALSE;
-   
-     my $bus = $element -> get_bus();
-   
-     return undef unless defined $bus;
-     return undef unless defined $tags;
-   
-     while (!$done) {
-       my $message = $bus -> poll("any", 0);
-       unless (defined $message) {
-         # All messages read, we're done
-         last;
-       }
-   
-       if ($message -> type & "eos") {
-         # End of stream, no tags found yet -> return undef
-         return undef;
-       }
-       if ($message -> type & "error") {
-         # decodebin complains about not having an element attached to its output.
-         # Sometimes this happens even before the "tag" message, so just continue.
-         next;
-       }
-       elsif ($message -> type & "tag") {
-         my $new_tags = $message -> tag_list();
-         foreach (keys %$new_tags) {
-           unless (exists $tags -> { $_ }) {
-             $tags -> { $_ } = $new_tags -> { $_ };
-           }
-         }
-       }
-     }
-   
-     return $tags;
-}
-   
-sub make_pipeline {
-     my $decodebin;
-     my $f_source = shift;
-     my $pipeline = shift; 
-     my $source = shift; 
-     $pipeline = GStreamer::Pipeline -> new(undef);
-     
-     if ($f_source eq "http") {
-     ($source, $decodebin) =
-       GStreamer::ElementFactory -> make(souphttpsrc => "source",
-                                         decodebin => "decodebin");
-     } else {
-     ($source, $decodebin) =
-       GStreamer::ElementFactory -> make(filesrc => "source",
-                                         decodebin => "decodebin");
-       
-     }
-   
-     $pipeline -> add($source, $decodebin);
-     $source -> link($decodebin);
-     return $pipeline, $source; 
+sub get_metadata {
+   use Audio::TagLib;
+
+   my @audios = @{$ref};
+   for (@audios)
+	my $f = Audio::TagLib::FileRef->new("$_"); 
+	imy $artist = $f->tag()->artist();
+	%TAGS = ( "ARTIST" , "$f->tag()->artist()",
+           "TITLE" , "$f->tag()->title()",
+           "ALBUM" , "$f->tag()->album()",
+	);
+	return \%TAGS
+
+
 }
    
 sub print_tag {
