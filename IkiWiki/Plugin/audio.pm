@@ -4,13 +4,17 @@
 # Copiado de IkiWiki::Plugin::Img por:
 # Christian Mock cm@tahina.priv.at 20061002
 
-# uso: [!audio audios/cancion.oga class=float_left]
+# uso: [!audio audios/cancion.oga class=left]
 
 package IkiWiki::Plugin::audio;
 
 use warnings;
 use strict;
 use IkiWiki 3.00;
+
+use URI;
+
+my $CONVERT = 'FALSE'; #change to true to auto transcode formats
 
 my @savetags = ("artist", "title", "genre", "date");
 my $urlogg = ""; 
@@ -85,7 +89,68 @@ sub preprocess (@) {
     $template->param(src => $audio); # <audio src=""></audio>
     $template->param(class => $params{class}); # el usuario final puede difinir su proprio `class`	
     # convertir entre ogg y un mp3
-    $template = convert($audio, $template); 
+    if ($audio =~ m/og(g|a)$/i) {
+ 	$template->param(URL_OGG => "$audio");
+	$urlogg = $audio; 
+        if ($audio =~ /http:\/\//) {
+            my ($mount) = $audio =~  m{(.*)\.og(g|a)$}i; 
+            my ($base, $ext) = split(/\./, $mount);
+            my $url2 = "$mount" . ".mp3";
+            my $audio2 = checkurl($url2);
+	    unless (defined $audio2) {
+	       print "[audio] $url2 does not exist\n";
+	    } else {
+ 		$urlmp3 = $url2;
+ 		$template->param(URL_MP3=> "$audio2");
+	    }
+   	} else {
+            my ($base, $ext) = split(/\./, $audio);
+	    my $audio2 = $base . ".mp3";
+            my $absfile = "$ENV{HOME}/$config{srcdir}/$audio2";
+	    if (!-e $absfile) {
+		if ($CONVERT eq 'TRUE') {
+                    print "[audio] $audio2 does not exist\n";
+                    print "[audio] convert\n";
+		    $urlmp3 = &convert($audio, $audio2);
+ 		    $template->param(URL_MP3=> "$audio2");
+	        }
+            } else {
+		$urlmp3 = $audio2;
+ 		$template->param(URL_MP3 => "$audio2");
+	    }
+        }
+    }
+    if ($audio =~ m/mp3$/i) {
+        $template->param(URL_MP3 => "$audio");
+	$urlmp3 = $audio; 
+        if ($audio =~ /http:\/\//) {
+            my ($mount) = $audio =~  m{(.*)\.mp3$}i; 
+            my ($base, $ext) = split(/\./, $mount);
+            my $url2 = "$mount" . ".oga";
+            my $audio2 = checkurl($url2);
+	    unless (defined $audio2) {
+	       print "[audio] $url2 does not exist\n";
+	    } else {
+ 		$urlogg = $url2;
+ 		$template->param(URL_OGG => "$audio2");
+	    }
+        } else {
+            my ($base, $ext) = split(/\./, $audio);
+            my $audio2 = $base . ".oga";
+            my $absfile = "$ENV{HOME}/$config{srcdir}/$audio2";
+            if (!-e $absfile) {
+               if ($CONVERT eq 'TRUE') {
+                   print "[audio] $audio2 does not exist\n";
+                   print "[audio] convert\n";
+                   $urlogg = &convert($audio, $audio2);
+ 		   $template->param(URL_OGG => "$audio2");
+               }
+            } else {
+    	        $urlogg = $audio2;
+ 		$template->param(URL_OGG => "$audio2");
+            }
+	}
+    }
     # consiguir las etiquetas de las audios
     $template = get_tags($audio,$template);
     #devolver html 
@@ -93,70 +158,42 @@ sub preprocess (@) {
 
 }
 
-sub convert (@) {
-    # si existe un mp3, pero no existe ogg, genera el ogg
-    # si existe un ogg, pero no existe mp3, genera el mp3
-    # eso es necario para el desmadre de soporte de navigadores
-    # utilizamos un script externo para hacer el trabajo duro
-    my $file=shift;
-    my $template=shift;
-    my ($base, $in);
-    if ($file =~ /http:\/\//) {
-      # no convertir `streamings`
-      ($base, $in) = $file =~ m{([^\\/.]+([^\\/]*)$)};
-      #return $template;
+sub checkurl (@) {
+
+    use LWP::Simple qw($ua get);
+    
+    my $url = shift;
+    my $net = $url;
+    $net =~ s!^https?://(?:www\.)?!!i;
+    $net =~ s!/.*!!;
+    $ua->credentials( $net, "flujos" );
+    $ua->timeout(10);
+    $ua->max_size(1);
+    my $r = $ua->get($url);
+    if ($r->is_success) { 
+    
+       # ok document exists
+       print "[audio] $url valido\n";
+       return $url;
     } else {
-        ($base, $in) = split(/\./, $file);
-
+       print "[audio] $url does not exist\n";
+       return undef; 
     }
-    my @sources = ($file);
-        my $cmd;
-        my $CONVERT;  
-        if ($in =~ m/og(g|a)$/i) {
-    	    if ($file =~ /http:\/\//) {
-		$urlogg = $file;
-  		$urlmp3 = $urlogg . ".mp3";
-                my $absfile = "$urlogg";
-	    } else {
-	        $urlogg = "$base.$in";
-	        $urlmp3 = $base . ".mp3";
-                my $absfile = "$ENV{HOME}/$config{srcdir}/$urlmp3";
-                if (!-e $absfile) {
-                    print "$absfile doesnot exist\n";
-                    $cmd = "gst-launch-0.10 filesrc location=$urlogg ! vorbisdec ! audioconvert ! lame ! id3mux !  filesink location=$urlmp3";
-                }
-	    }
-	    $template->param(URL_OGG => "$urlogg");
-            $template->param(type0 => "audio/ogg");
-            $template->param(type1 => "audio/mpeg");
-	    $template->param(URL_MP3 => "$urlmp3");
-            $template->param(fallback => "$urlmp3");
-            push(@sources, "$urlmp3");
-        }
-        
-        if ($in =~ m/mp3$/i) {
-	    $urlmp3 = "$base.$in";
-            $template->param(type0 => "audio/mpeg");
-            $template->param(type1 => "audio/ogg");
-            $template->param(fallback => "$base.$in");
-	    $template->param(URL_MP3 => "$base.$in");
+}
 
-            my $out = "oga"; 
-	    $template->param(URL_OGG => "$base.$out");
-	    $urlogg = "$base.$out";
-            if (!-e "$ENV{HOME}/$config{srcdir}$base.$out") {
-                $cmd = "gst-launch-0.10 filesrc location=$base.$in ! mad ! audioconvert ! vorbisenc ! oggmux !  filesink location=$base.$out" ;
-                push(@sources, "$base.$out");
-                }
-        }
-        # ejectutar orden de conversion
-        if ($cmd) { 
-            print "gst command: $cmd\n";
-            system($cmd);
-        }
-       $template->param(src0 => $sources[0]);
-       $template->param(src1 => $sources[1]);
-    return $template;
+sub convert (@) {
+    my $in = shift;
+    my $out = shift;
+    my $cmd = '';
+    if ($in =~ /og(a|g)/i) {
+        $cmd = "gst-launch-0.10 filesrc location=$in ! vorbisdec ! audioconvert ! lame ! id3mux !  filesink location=$out";
+    }
+    if ($in =~ /mp3/i) {
+	$cmd = "gst-launch-0.10 filesrc location=$in ! mad ! audioconvert ! vorbisenc ! oggmux !  filesink location=$out" ;
+    }
+    print "[audio] gst command: $cmd\n";
+    system($cmd) || die "could not convert file $!\n";
+    return $out;
 }
 
 sub get_tags ($) {
@@ -169,17 +206,17 @@ sub get_tags ($) {
     if (!-e $file) {
         if ($file =~ /http:\/\//){
             print "got a hold on $file\n";
-	    $MD = &gst_metadata(\@files);
+	    $TAGS = &get_metadata(\@files);
         } else {
                 print  "Cant get a handle: $!\n";
                 print  "Try abs path:\n";
                 print "$ENV{HOME}/$config{srcdir}/$file\n";
                 $file = "$ENV{HOME}/$config{srcdir}/$file";
-	        $MD = &gst_metadata(\@files);
+	        $TAGS = &get_metadata(\@files);
         }
     } else {
         print "got a hold on $file\n";
-	$MD = &gst_metadata(\@files);
+	$TAGS = &get_metadata(\@files);
     }
     my %data = %{$MD};
     foreach  my $key ( keys %data) {
@@ -248,127 +285,25 @@ sub include_javascript ($;$) {
         '<script src="'.urlto('ikiwiki/jquery.jplayer.min.js', $page).
         '" type="text/javascript" charset="utf-8"></script>'. "\n" .
 	'<link href="'.urlto('ikiwiki/blue.monday/jplayer.blue.monday.css', $page). 
+	'" type="text/css" rel="stylesheet">'. "\n" .
+        '<link href="'.urlto('ikiwiki/blue.monday/jplayer.blue.monday.small.css', $page). 
 	'" type="text/css" rel="stylesheet">';
 }
 
-sub gst_metadata {
-# This is a Perl port of an example found in the gstreamer-0.9.6 tarball.
-# Original and current copyright:
-# GStreamer
-# Copyright (C) 2003 Thomas Vander Stichele <thomas@apestaart.org>
-#               2003 Benjamin Otte <in7y118@public.uni-hamburg.de>
-#               2005 Andy Wingo <wingo@pobox.com>
-#               2005 Jan Schmidt <thaytan@mad.scientist.com>
-# gst-metadata.c: Use GStreamer to display metadata within files.
+sub get_metadata {
+   use Audio::TagLib;
 
-   use Glib qw(TRUE FALSE);
-   use GStreamer qw(GST_MSECOND);
-   my $ref = shift;
-   my @list = @{$ref};
-   my ($filename, $pipeline, $source, $tags);
-   
-   GStreamer -> init();
-   
-   if ($#list < 0) {
-     print "Please give filenames to read metadata from\n";
-     exit 1;
-   }
-   
-   foreach (@list) {
-     print "element of list: $_\n";
-     if (m/http:\/\//){
-         ($pipeline, $source) = make_pipeline("http", $pipeline, $source);
-     } else {
-         ($pipeline, $source) = make_pipeline("file", $pipeline, $source);
-     }
-     $filename = $_;
-     $source -> set(location => Glib::filename_to_unicode $filename);
-      
-     # Decodebin will only commit to PAUSED if it actually finds a type;
-     # otherwise the state change fails
-     my $sret = $pipeline -> set_state("paused");
-   
-     if ("async" eq $sret) {
-       ($sret, undef, undef) = $pipeline -> get_state(5000 * GST_MSECOND);
-     }
-   
-     if ("success" ne $sret) {
-       printf "%s - Could not read file\n", $filename;
-       next;
-     }
-   
-     $tags = message_loop($pipeline);
-   
-     unless (defined $tags) {
-       printf "No metadata found for %s\n", Glib::filename_display_name $_;
-     }
-     #map { print_tag($tags, $_) } keys %$tags; #test tags
-   
-     $pipeline -> set_state("null");
-   }
-   return $tags;
-}
-sub message_loop {
-     my ($element) = @_;
-   
-     my $tags = {};
-     my $done = FALSE;
-   
-     my $bus = $element -> get_bus();
-   
-     return undef unless defined $bus;
-     return undef unless defined $tags;
-   
-     while (!$done) {
-       my $message = $bus -> poll("any", 0);
-       unless (defined $message) {
-         # All messages read, we're done
-         last;
-       }
-   
-       if ($message -> type & "eos") {
-         # End of stream, no tags found yet -> return undef
-         return undef;
-       }
-       if ($message -> type & "error") {
-         # decodebin complains about not having an element attached to its output.
-         # Sometimes this happens even before the "tag" message, so just continue.
-         next;
-       }
-       elsif ($message -> type & "tag") {
-         my $new_tags = $message -> tag_list();
-         foreach (keys %$new_tags) {
-           unless (exists $tags -> { $_ }) {
-             $tags -> { $_ } = $new_tags -> { $_ };
-           }
-         }
-       }
-     }
-   
-     return $tags;
-}
-   
-sub make_pipeline {
-     my $decodebin;
-     my $f_source = shift;
-     my $pipeline = shift; 
-     my $source = shift; 
-     $pipeline = GStreamer::Pipeline -> new(undef);
-     
-     if ($f_source eq "http") {
-     ($source, $decodebin) =
-       GStreamer::ElementFactory -> make(souphttpsrc => "source",
-                                         decodebin => "decodebin");
-     } else {
-     ($source, $decodebin) =
-       GStreamer::ElementFactory -> make(filesrc => "source",
-                                         decodebin => "decodebin");
-       
-     }
-   
-     $pipeline -> add($source, $decodebin);
-     $source -> link($decodebin);
-     return $pipeline, $source; 
+   my @audios = @{$ref};
+   for (@audios)
+	my $f = Audio::TagLib::FileRef->new("$_"); 
+	imy $artist = $f->tag()->artist();
+	%TAGS = ( "ARTIST" , "$f->tag()->artist()",
+           "TITLE" , "$f->tag()->title()",
+           "ALBUM" , "$f->tag()->album()",
+	);
+	return \%TAGS
+
+
 }
    
 sub print_tag {
@@ -380,5 +315,4 @@ sub print_tag {
        }
      }
 }
- 
 1

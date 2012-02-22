@@ -35,6 +35,7 @@ HTML::Tree
 Sort::Naturally
 Gravatar::URL
 Net::INET6Glue
+Audio::TagLib
 
 =head1 AUTHOR
 
