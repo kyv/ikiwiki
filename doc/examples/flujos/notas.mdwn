@@ -1,0 +1,3 @@
+Aqui una lista completo de notas en el [[blog|index]].
+
+[[!inline pages="page(./notas/*) and !*/Discussion" archive=yes feedshow=10 quick=yes]]
