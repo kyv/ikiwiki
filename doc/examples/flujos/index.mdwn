@@ -1,0 +1,11 @@
+[[!if test="enabled(sidebar)" then="""
+[[!sidebar]]
+""" else="""
+[[!inline pages=sidebar raw=yes]]
+"""]]
+
+Benvenidos a su nueva pagina. Siente a libertad modificar ese texto. 
+
+[[!audio http://radio.flujos.org:8000/rockola.oga]]
+
+[flujos](http://flujos.org).

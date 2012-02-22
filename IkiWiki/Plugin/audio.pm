@@ -200,41 +200,41 @@ sub get_tags ($) {
     # obtener etiqutas del audio y agregarlos al html.
     my $file=shift;
     my $template=shift;
-    my $MD;
+    my $TAGS;
     my @files;
     push(@files, $file);
     if (!-e $file) {
         if ($file =~ /http:\/\//){
             print "got a hold on $file\n";
-	    $TAGS = &get_metadata(\@files);
+	    #$TAGS = &get_metadata(\@files);
         } else {
                 print  "Cant get a handle: $!\n";
                 print  "Try abs path:\n";
                 print "$ENV{HOME}/$config{srcdir}/$file\n";
                 $file = "$ENV{HOME}/$config{srcdir}/$file";
-	        $TAGS = &get_metadata(\@files);
+	        #$TAGS = &get_metadata(\@files);
         }
     } else {
         print "got a hold on $file\n";
-	$TAGS = &get_metadata(\@files);
+	#$TAGS = &get_metadata(\@files);
     }
-    my %data = %{$MD};
-    foreach  my $key ( keys %data) {
-       if ($key && @{$data{$key}}) {
-       print $key, ":", @{$data{$key}}, "\n";
-     
-       }else{
-          print "[audio] metadata error:  $!"
-       
-       }
-       $template->param($key => "@{$data{$key}}");
-       foreach my $tag (@savetags) {
-           if ( $template->param($tag) ) {
-               $template->param(tags => "al huevo");
-	       # this should probaly set the tags instead of setting `al huevo` :)                 
-            }
-       }
-    }
+    #my %data = %{$TAGS};
+    #foreach  my $key ( keys %data) {
+    #   if ($key && @{$data{$key}}) {
+    #   print $key, ":", @{$data{$key}}, "\n";
+    # 
+    #   }else{
+    #      print "[audio] metadata error:  $!"
+    #   
+    #   }
+    #   $template->param($key => "@{$data{$key}}");
+    #   foreach my $tag (@savetags) {
+    #       if ( $template->param($tag) ) {
+    #           $template->param(tags => "al huevo");
+    #           # this should probaly set the tags instead of setting `al huevo` :)                 
+    #        }
+    #   }
+    #}
 
     return $template;
 }
@@ -291,17 +291,19 @@ sub include_javascript ($;$) {
 }
 
 sub get_metadata {
-   use Audio::TagLib;
-
+   use Audio::Tagger qw(Any);
+   my $ref = shift;
    my @audios = @{$ref};
-   for (@audios)
-	my $f = Audio::TagLib::FileRef->new("$_"); 
-	imy $artist = $f->tag()->artist();
-	%TAGS = ( "ARTIST" , "$f->tag()->artist()",
-           "TITLE" , "$f->tag()->title()",
-           "ALBUM" , "$f->tag()->album()",
+   my %TAGS;
+   for (@audios) {
+	my $f = Any("$_"); 
+	%TAGS = ( 
+	   "ARTIST" , "$f->artist()",
+           "TITLE" , "$f->title()",
+           "ALBUM" , "$f->album()",
 	);
-	return \%TAGS
+    }
+    return \%TAGS
 
 
 }
