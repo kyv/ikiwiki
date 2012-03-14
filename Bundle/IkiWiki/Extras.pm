@@ -35,7 +35,7 @@ HTML::Tree
 Sort::Naturally
 Gravatar::URL
 Net::INET6Glue
-Audio::Tagger
+XML::Writer
 
 =head1 AUTHOR
 
