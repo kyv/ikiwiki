@@ -1,0 +1,10 @@
+[[!sidebar content="""
+[[!inline pages="comment_pending(./notas/*)" feedfile=pendingmoderation
+description="comments pending moderation" show=-1]]
+Comments in the [[!commentmoderation desc="moderation queue"]]:
+[[!pagecount pages="comment_pending(./notas/*)"]]
+"""]]
+
+Recent comments on notas in the [[blog|index]]:
+[[!inline pages="./notas/*/Discussion or comment(./notas/*)"
+template="comment"]]
