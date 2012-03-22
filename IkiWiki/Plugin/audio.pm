@@ -23,7 +23,7 @@ my $urlmp3 = "";
 # llamamos a los `hooks` de ikiwiki de procesamiento del plugin
 sub import {
 	# underlay = ficheros estaticos incluidos en el wiki
-	add_underlay("jplayer");
+	add_underlay("360-player");
 	# opicones de configuracion para el plugin 
 	hook(type => "getsetup", id => "audio", call => \&getsetup);
 	# la mayor parte de la logica del plugin, que devuelva salida de la plantilla
@@ -86,73 +86,10 @@ sub preprocess (@) {
 		}
 	}
     my $template = template("audio.tmpl");
-    $template->param(src => $audio); # <audio src=""></audio>
+    $template->param(AUDIO_URL => $audio); # <audio src=""></audio>
     $template->param(class => $params{class}); # el usuario final puede difinir su proprio `class`	
-    # convertir entre ogg y un mp3
-    if ($audio =~ m/og(g|a)$/i) {
- 	$template->param(URL_OGG => "$audio");
-	$urlogg = $audio; 
-        if ($audio =~ /http:\/\//) {
-            my ($mount) = $audio =~  m{(.*)\.og(g|a)$}i; 
-            my ($base, $ext) = split(/\./, $mount);
-            my $url2 = "$mount" . ".mp3";
-            my $audio2 = checkurl($url2);
-	    unless (defined $audio2) {
-	       print "[audio] $url2 does not exist\n";
-	    } else {
- 		$urlmp3 = $url2;
- 		$template->param(URL_MP3=> "$audio2");
-	    }
-   	} else {
-            my ($base, $ext) = split(/\./, $audio);
-	    my $audio2 = $base . ".mp3";
-            my $absfile = "$ENV{HOME}/$config{srcdir}/$audio2";
-	    if (!-e $absfile) {
-		if ($CONVERT eq 'TRUE') {
-                    print "[audio] $audio2 does not exist\n";
-                    print "[audio] convert\n";
-		    $urlmp3 = &convert($audio, $audio2);
- 		    $template->param(URL_MP3=> "$audio2");
-	        }
-            } else {
-		$urlmp3 = $audio2;
- 		$template->param(URL_MP3 => "$audio2");
-	    }
-        }
-    }
-    if ($audio =~ m/mp3$/i) {
-        $template->param(URL_MP3 => "$audio");
-	$urlmp3 = $audio; 
-        if ($audio =~ /http:\/\//) {
-            my ($mount) = $audio =~  m{(.*)\.mp3$}i; 
-            my ($base, $ext) = split(/\./, $mount);
-            my $url2 = "$mount" . ".oga";
-            my $audio2 = checkurl($url2);
-	    unless (defined $audio2) {
-	       print "[audio] $url2 does not exist\n";
-	    } else {
- 		$urlogg = $url2;
- 		$template->param(URL_OGG => "$audio2");
-	    }
-        } else {
-            my ($base, $ext) = split(/\./, $audio);
-            my $audio2 = $base . ".oga";
-            my $absfile = "$ENV{HOME}/$config{srcdir}/$audio2";
-            if (!-e $absfile) {
-               if ($CONVERT eq 'TRUE') {
-                   print "[audio] $audio2 does not exist\n";
-                   print "[audio] convert\n";
-                   $urlogg = &convert($audio, $audio2);
- 		   $template->param(URL_OGG => "$audio2");
-               }
-            } else {
-    	        $urlogg = $audio2;
- 		$template->param(URL_OGG => "$audio2");
-            }
-	}
-    }
     # consiguir las etiquetas de las audios
-    $template = get_tags($audio,$template);
+    # $template = get_tags($audio,$template);
     #devolver html 
     return $template->output;
 
@@ -179,21 +116,6 @@ sub checkurl (@) {
        print "[audio] $url does not exist\n";
        return undef; 
     }
-}
-
-sub convert (@) {
-    my $in = shift;
-    my $out = shift;
-    my $cmd = '';
-    if ($in =~ /og(a|g)/i) {
-        $cmd = "gst-launch-0.10 filesrc location=$in ! vorbisdec ! audioconvert ! lame ! id3mux !  filesink location=$out";
-    }
-    if ($in =~ /mp3/i) {
-	$cmd = "gst-launch-0.10 filesrc location=$in ! mad ! audioconvert ! vorbisenc ! oggmux !  filesink location=$out" ;
-    }
-    print "[audio] gst command: $cmd\n";
-    system($cmd) || die "could not convert file $!\n";
-    return $out;
 }
 
 sub get_tags ($) {
@@ -238,41 +160,12 @@ sub get_tags ($) {
 
     return $template;
 }
-
 sub format (@) {
     # parsea y modifica salida html de `preprocess`
     my %params=@_;
-    my $string=&include_player; # rutina que formatea el `player`
-    # $params{content} contiene el html como producido por la platilla arriba
-    # buscamos el un div de `audio` y agregamos el reproductor dentro del div
-    $params{content}=~s/(<div class="audio">)/$1$string/;
     # incluir el javascript
     $params{content}=include_javascript($params{page}, 1).$params{content};
     return $params{content};
-}
-
-sub include_player {
-    # nuestra reproductor de audio
-my $string = <<STRING;
-  
-<script type="text/javascript">
- \$(document).ready(function(){
-   \$("#jquery_jplayer").jPlayer({
-     ready: function () {
-       \$(this).jPlayer("setMedia", {
-         mp3: "$urlmp3",
-         oga: "$urlogg"
-       });
-     },
-     swfPath: "/jplayer",
-     supplied: "oga, mp3",
-     cssSelectorAncestor: "#jp_interface" 
-   });
- });
-</script>
-
-STRING
-return $string; 
 }
 
 sub include_javascript ($;$) {
@@ -280,14 +173,25 @@ sub include_javascript ($;$) {
     my $page=shift;
     my $absolute=shift;
 
-    return '<script src="'.urlto('ikiwiki/jquery.min.js', $page).
+    return '<script src="'.urlto('ikiwiki/berniecode-animator.js', $page).
         '" type="text/javascript" charset="utf-8"></script>'. "\n" .
-        '<script src="'.urlto('ikiwiki/jquery.jplayer.min.js', $page).
+        '<script src="'.urlto('ikiwiki/soundmanager2.js', $page).
         '" type="text/javascript" charset="utf-8"></script>'. "\n" .
-	'<link href="'.urlto('ikiwiki/blue.monday/jplayer.blue.monday.css', $page). 
+        '<script src="'.urlto('ikiwiki/360player.js', $page).
+        '" type="text/javascript" charset="utf-8"></script>'. "\n" .
+	'<!-- special IE-only canvas fix -->'. "\n" .
+	'<!--[if IE]><script src="'urlto('ikiwiki/excanvas.js', $page). 
+	'" type="text/javascript" charset="utf-8"></script><![endif]-->' . "\n" .
+	'<link href="'.urlto('ikiwiki/360player.css', $page). 
 	'" type="text/css" rel="stylesheet">'. "\n" .
-        '<link href="'.urlto('ikiwiki/blue.monday/jplayer.blue.monday.small.css', $page). 
-	'" type="text/css" rel="stylesheet">';
+	'<script type="text/javascript">'. "\n" .
+	'    soundManager.url = '.urlto('ikiwiki/swf/', $page). ";\n".
+	'    soundManager.useHTML5Audio = true;'. "\n".
+  	'    soundManager.useConsole = true;'."\n".
+	'    soundManager.preferFlash = false;'."\n".
+   	'    soundManager.debugMode = true;'."\n".
+	'</script>';
+
 }
 
 sub get_metadata {
@@ -304,7 +208,6 @@ sub get_metadata {
 	);
     }
     return \%TAGS
-
 
 }
    
