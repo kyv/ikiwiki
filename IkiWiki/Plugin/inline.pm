@@ -194,7 +194,8 @@ sub preprocess_inline (@) {
 			}
 		}
 
-		@list = map { bestlink($params{page}, $_) }
+		@list = grep { $_ ne '' } 
+			map { bestlink($params{page}, $_) }
 		        split ' ', $params{pagenames};
 
 		if (yesno($params{reverse})) {

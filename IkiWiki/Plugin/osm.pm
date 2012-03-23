@@ -64,33 +64,22 @@ sub getsetup () {
 
 sub preprocess {
 	my %params=@_;
-	my $page = $params{'page'};
-	my $dest = $params{'destpage'};
-	my $loc = $params{'loc'}; # sanitized below
-	my $lat = $params{'lat'}; # sanitized below
-	my $lon = $params{'lon'}; # sanitized below
-	my $href = $params{'href'};
+	my $page = $params{page};
+	my $dest = $params{destpage};
+	my $loc = $params{loc}; # sanitized below
+	my $lat = $params{lat}; # sanitized below
+	my $lon = $params{lon}; # sanitized below
+	my $href = $params{href};
 
-	my $fullscreen = defined($params{'fullscreen'}); # sanitized here
 	my ($width, $height, $float);
-	if ($fullscreen) {
-		$height = '100%';
-		$width = '100%';
-		$float = 0;
-	}
-	else {
-		$height = scrub($params{'height'} || "300px", $page, $dest); # sanitized here
-		$width = scrub($params{'width'} || "500px", $page, $dest); # sanitized here
-		$float = (defined($params{'right'}) && 'right') || (defined($params{'left'}) && 'left'); # sanitized here
-	}
+	$height = scrub($params{'height'} || "300px", $page, $dest); # sanitized here
+	$width = scrub($params{'width'} || "500px", $page, $dest); # sanitized here
+	$float = (defined($params{'right'}) && 'right') || (defined($params{'left'}) && 'left'); # sanitized here
+	
 	my $zoom = scrub($params{'zoom'} // $config{'osm_default_zoom'} // 15, $page, $dest); # sanitized below
 	my $map;
-	if ($fullscreen) {
-		$map = $params{'map'} || $page;
-	}
-	else {
-		$map = $params{'map'} || 'map';
-	}
+	$map = $params{'map'} || 'map';
+	
 	$map = scrub($map, $page, $dest); # sanitized here
 	my $name = scrub($params{'name'} || $map, $page, $dest);
 
@@ -101,12 +90,20 @@ sub preprocess {
 	if ($zoom !~ /^\d\d?$/ || $zoom < 2 || $zoom > 18) {
 		error("Bad zoom");
 	}
+
+	if (! defined $href || ! length $href) {
+		$href=IkiWiki::cgiurl(
+			do => "osm",
+			map => $map,
+		);
+	}
+
 	$pagestate{$page}{'osm'}{$map}{'displays'}{$name} = {
 		height => $height,
 		width => $width,
 		float => $float,
 		zoom => $zoom,
-		fullscreen => $fullscreen,
+		fullscreen => 0,
 		editable => defined($params{'editable'}),
 		lat => $lat,
 		lon => $lon,
@@ -154,30 +151,16 @@ sub process_waypoint {
 	$icon = urlto($icon, $dest, 1);
 	$tag = '' unless $tag;
 	if ($page eq $dest) {
-		if (!defined($config{'osm_format'}) || !$config{'osm_format'}) {
-			$config{'osm_format'} = 'KML';
-		}
-		my %formats = map { $_ => 1 } split(/, */, $config{'osm_format'});
+		my %formats = get_formats();
 		if ($formats{'GeoJSON'}) {
-			will_render($page,$config{destdir} . "/$map/pois.json");
+			will_render($page, "$map/pois.json");
 		}
 		if ($formats{'CSV'}) {
-			will_render($page,$config{destdir} . "/$map/pois.txt");
+			will_render($page, "$map/pois.txt");
 		}
 		if ($formats{'KML'}) {
-			will_render($page,$config{destdir} . "/$map/pois.kml");
+			will_render($page, "$map/pois.kml");
 		}
-	}
-	my $href = IkiWiki::cgiurl(
-		do => "osm",
-		map => $map,
-		lat => $lat,
-		lon => $lon,
-		zoom => $zoom,
-	);
-	if (defined($destsources{htmlpage($map)})) {
-		$href = urlto($map,$page) . "?lat=$lat&amp;lon=$lon&amp;zoom=$zoom";
-		$href =~ s!&!&amp;!g;
 	}
 	$pagestate{$page}{'osm'}{$map}{'waypoints'}{$name} = {
 		page => $page,
@@ -186,18 +169,28 @@ sub process_waypoint {
 		tag => $tag,
 		lat => $lat,
 		lon => $lon,
-		# how to link back to the page from the map, not to be
+		# How to link back to the page from the map, not to be
 		# confused with the URL of the map itself sent to the
-		# embeded map below
-		href => urlto($page,$map),
+		# embeded map below. Note: used in generated KML etc file,
+		# so must be absolute.
+		href => urlto($page),
 	};
+
+	my $mapurl = IkiWiki::cgiurl(
+		do => "osm",
+		map => $map,
+		lat => $lat,
+		lon => $lon,
+		zoom => $zoom,
+	);
 	my $output = '';
 	if (defined($params{'embed'})) {
-		$params{'href'} = $href; # propagate down to embeded
-		$output .= preprocess(%params);
+		$output .= preprocess(%params,
+			href => $mapurl,
+		);
 	}
 	if (!$hidden) {
-		$output .= "<a href=\"$href\"><img class=\"img\" src=\"$icon\" $alt /></a>";
+		$output .= "<a href=\"$mapurl\"><img class=\"img\" src=\"$icon\" $alt /></a>";
 	}
 	return $output;
 }
@@ -292,10 +285,7 @@ sub savestate {
 		}
 	}
 
-	if (!defined($config{'osm_format'}) || !$config{'osm_format'}) {
-		$config{'osm_format'} = 'KML';
-	}
-	my %formats = map { $_ => 1 } split(/, */, $config{'osm_format'});
+	my %formats = get_formats();
 	if ($formats{'GeoJSON'}) {
 		writejson(\%waypoints, \%linestrings);
 	}
@@ -335,41 +325,6 @@ sub writekml($;$) {
 	eval q{use XML::Writer};
 	error $@ if $@;
 	foreach my $map (keys %waypoints) {
-
-=pod
-Sample placemark:
-
-<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2">
-  <Placemark>
-    <name>Simple placemark</name>
-    <description>Attached to the ground. Intelligently places itself 
-       at the height of the underlying terrain.</description>
-    <Point>
-      <coordinates>-122.0822035425683,37.42228990140251,0</coordinates>
-    </Point>
-  </Placemark>
-</kml>
-
-Sample style:
-
-
-        <Style id="sh_sunny_copy69">
-                <IconStyle>
-                        <scale>1.4</scale>
-                        <Icon>
-                                <href>http://waypoints.google.com/mapfiles/kml/shapes/sunny.png</href>
-                        </Icon>
-                        <hotSpot x="0.5" y="0.5" xunits="fraction" yunits="fraction"/>
-                </IconStyle>
-                <LabelStyle>
-                        <color>ff00aaff</color>
-                </LabelStyle>
-        </Style>
-
-
-=cut
-
 		my $output;
 		my $writer = XML::Writer->new( OUTPUT => \$output,
 			DATA_MODE => 1, ENCODING => 'UTF-8');
@@ -436,7 +391,7 @@ Sample style:
 		$writer->endTag();
 		$writer->end();
 
-		writefile("pois.kmp", $config{destdir} . "/$map", $output);
+		writefile("pois.kml", $config{destdir} . "/$map", $output);
 	}
 }
 
@@ -484,7 +439,7 @@ sub format (@) {
 	return $params{content};
 }
 
-sub prefered_format() {
+sub preferred_format() {
 	if (!defined($config{'osm_format'}) || !$config{'osm_format'}) {
 		$config{'osm_format'} = 'KML';
 	}
@@ -492,19 +447,21 @@ sub prefered_format() {
 	return shift @spl;
 }
 
+sub get_formats() {
+	if (!defined($config{'osm_format'}) || !$config{'osm_format'}) {
+		$config{'osm_format'} = 'KML';
+	}
+	map { $_ => 1 } split(/, */, $config{'osm_format'});
+}
+
 sub include_javascript ($) {
 	my $page=shift;
 	my $loader;
 
-	eval q{use JSON};
-	error $@ if $@;
 	if (exists $pagestate{$page}{'osm'}) {
 		foreach my $map (keys %{$pagestate{$page}{'osm'}}) {
 			foreach my $name (keys %{$pagestate{$page}{'osm'}{$map}{'displays'}}) {
-				my %options = %{$pagestate{$page}{'osm'}{$map}{'displays'}{$name}};
-				$options{'map'} = $map;
-				$options{'format'} = prefered_format();
-				$loader .= "mapsetup(\"mapdiv-$name\", " . to_json(\%options) . ");\n";
+				$loader .= map_setup_code($map, $name, %{$pagestate{$page}{'osm'}{$map}{'displays'}{$name}});
 			}
 		}
 	}
@@ -521,6 +478,8 @@ sub cgi($) {
 
 	return unless defined $cgi->param('do') &&
 		$cgi->param("do") eq "osm";
+	
+	IkiWiki::loadindex();
 
 	IkiWiki::decode_cgi_utf8($cgi);
 
@@ -534,7 +493,15 @@ sub cgi($) {
 	print "<html><body>";
 	print "<div id=\"mapdiv-$map\"></div>";
 	print embed_map_code();
-	print "<script type=\"text/javascript\" charset=\"utf-8\">mapsetup( 'mapdiv-$map', { 'map': '$map', 'lat': urlParams['lat'], 'lon': urlParams['lon'], 'zoom': urlParams['zoom'], 'fullscreen': 1, 'editable': 1, 'format': '" . prefered_format() . "'});</script>";
+	print "<script type=\"text/javascript\" charset=\"utf-8\">";
+	print map_setup_code($map, $map,
+		lat => "urlParams['lat']",
+		lon => "urlParams['lon']",
+		zoom => "urlParams['zoom']",
+		fullscreen => 1,
+		editable => 1,
+	);
+	print "</script>";
 	print "</body></html>";
 
 	exit 0;
@@ -545,6 +512,30 @@ sub embed_map_code(;$) {
 	return '<script src="http://www.openlayers.org/api/OpenLayers.js" type="text/javascript" charset="utf-8"></script>'.
 		'<script src="'.urlto("ikiwiki/osm.js", $page).
 		'" type="text/javascript" charset="utf-8"></script>'."\n";
+}
+
+sub map_setup_code($;@) {
+	my $map=shift;
+	my $name=shift;
+	my %options=@_;
+
+	eval q{use JSON};
+	error $@ if $@;
+				
+	$options{'format'} = preferred_format();
+
+	my %formats = get_formats();
+	if ($formats{'GeoJSON'}) {
+		$options{'jsonurl'} = urlto($map."/pois.json");
+	}
+	if ($formats{'CSV'}) {
+		$options{'csvurl'} = urlto($map."/pois.txt");
+	}
+	if ($formats{'KML'}) {
+		$options{'kmlurl'} = urlto($map."/pois.kml");
+	}
+
+	return "mapsetup('mapdiv-$name', " . to_json(\%options) . ");";
 }
 
 1;
