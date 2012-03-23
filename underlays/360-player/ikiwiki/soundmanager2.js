@@ -78,7 +78,7 @@ function SoundManager(smURL, smID) {
 
     'mp3': {
       'type': ['audio/mpeg; codecs="mp3"', 'audio/mpeg', 'audio/mp3', 'audio/MPA', 'audio/mpa-robust'],
-      'required': true
+      'required': false 
     },
 
     'mp4': {

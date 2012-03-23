@@ -192,9 +192,9 @@ sub include_javascript ($;$) {
 	'    soundManager.useHTML5Audio = true;'. "\n".
   	'    soundManager.useConsole = true;'."\n".
 	'    soundManager.preferFlash = false;'."\n".
-   	'    soundManager.debugMode = false;'."\n".
+   	'    soundManager.debugMode = true;'."\n".
    	'    soundManager.autoLoad = true;'."\n".
-   	'    soundManager.useFlashBlock;'."\n".
+   	'    soundManager.useFlashBlock = true;'."\n".
 	'</script>';
 }
 
