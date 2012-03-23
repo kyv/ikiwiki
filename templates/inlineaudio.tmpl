@@ -1,4 +1,4 @@
-<TMPL_IF HTML5><article class="inlinepage"><TMPL_ELSE><div class="inlinepage"></TMPL_IF>
+<TMPL_IF HTML5><article class="inlinepage" style="padding:0;"><TMPL_ELSE><div class="inlinepage" style="padding:0"></TMPL_IF>
 
 <TMPL_IF HTML5><section class="inlineheader"><TMPL_ELSE><div class="inlineheader"></TMPL_IF>
 <TMPL_IF AUTHOR>
@@ -21,57 +21,20 @@
 
 <TMPL_IF HTML5><section class="inlinecontent"><TMPL_ELSE><div class="inlinecontent"></TMPL_IF>
 <TMPL_VAR CONTENT>
-<TMPL_IF HTML5></section><TMPL_ELSE></div></TMPL_IF>
-<div class="<TMPL_VAR CLASS>">
-<h3><TMPL_VAR TITLE> - <TMPL_VAR Artist></h3>
-<TMPL_IF PAGEURL>
-<audio src="<TMPL_VAR PAGEURL>" controls="true">
-        <TMPL_IF nocando><TMPL_VAR nocando>
-        <TMPL_ELSE>Tu navegardor de web no puede reporducir la radio, pique <a href="http://www.mozilla-europe.org/es/firefox/">aqui para instalar firefox</a>
-    </TMPL_IF></audio>
-      <ul id="tags">
-      <TMPL_IF TITLE><li  class="tag">Title: <TMPL_VAR TITLE></li></TMPL_IF>
-      <TMPL_IF ARTIST><li  class="tag">Artist: <TMPL_VAR ARTIST></li></TMPL_IF>
-      <TMPL_IF GENRE><li class="tag">Genre: <TMPL_VAR GENRE></li></TMPL_IF>
-      <TMPL_IF DATE><li class="tag">Date: <TMPL_VAR DATE></li></TMPL_IF>
-      <TMPL_IF PAGEURL><li><a class="downloadlink" href="<TMPL_VAR PAGEURL>" title="enlace directo">Enlace Directo</a></li></TMPL_IF>
-      </ul>
+<div class="audio">
 
-
-<TMPL_ELSE>
-        <TMPL_IF TITLE>
-             <h3 class="audiotagtitle"><TMPL_VAR TITLE> - <TMPL_VAR Artist></h3>
-        </TMPL_IF>
-    <audio controls="true">
-        <TMPL_IF SRC0>
-        <source src="<TMPL_VAR SRC0>" <TMPL_IF TYPE0>
-            type="<TMPL_VAR TYPE0>
-            </TMPL_IF>
-            "/>
-        <source src="<TMPL_VAR SRC1>" <TMPL_IF TYPE1>type="<TMPL_VAR TYPE1></TMPL_IF>"/>
-        <TMPL_ELSE>
-        <source src="<TMPL_VAR SRC>"/>
-        </TMPL_IF>
-      <TMPL_IF nocando><TMPL_VAR nocando>
-      <TMPL_ELSE>Tu navegardor de web no puede reporducir la radio, pique <a href="http://www.mozilla-europe.org/es/firefox/">aqui para instalar firefox</a>
-      </TMPL_IF>      
-      </audio>
-      <ul id="tags">
-      <TMPL_IF TITLE><li  class="tag">Title: <TMPL_VAR TITLE></li></TMPL_IF>
-      <TMPL_IF ARTIST><li  class="tag">Artist: <TMPL_VAR ARTIST></li></TMPL_IF>
-      <TMPL_IF GENRE><li class="tag">Genre: <TMPL_VAR GENRE></li></TMPL_IF>
-      <TMPL_IF DATE><li class="tag">Date: <TMPL_VAR DATE></li></TMPL_IF>
-      <li><TMPL_IF SRC0>Enlace Directo: <a class="downloadlink" href="<TMPL_VAR SRC0>" title="enlace directo">0</a>, <TMPL_IF SRC1><a class="downloadlink" href="<TMPL_VAR SRC1>" title="enlace directo">1</a></TMPL_IF><TMPL_ELSE><a class="downloadlink" href="<TMPL_VAR SRC>" title="enlace directo">Enlace Directo</a></TMPL_IF></li>
-      </ul>
-
-
-
-</TMPL_IF>
+    <div style="margin-top:1.25em">
+    
+        <div class="ui360" style="margin-top:-0.55em"><a href="<TMPL_VAR NAME="PAGEURL">"><TMPL_VAR TITLE></a>
+	</div>
+    
+    </div>
+<div style="clear:both"></div>
 
 </div>
 
 
-
+<TMPL_IF HTML5></section><TMPL_ELSE></div></TMPL_IF>
 <TMPL_IF HTML5><footer class="inlinefooter"><TMPL_ELSE><div class="inlinefooter"></TMPL_IF>
 
 <span class="pagedate">
