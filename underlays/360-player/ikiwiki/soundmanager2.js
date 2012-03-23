@@ -87,6 +87,11 @@ function SoundManager(smURL, smID) {
       'required': false
     },
 
+    'oga': {
+      'type': ['audio/ogg; codecs=vorbis'],
+      'required': false
+    },
+
     'ogg': {
       'type': ['audio/ogg; codecs=vorbis'],
       'required': false
@@ -106,7 +111,7 @@ function SoundManager(smURL, smID) {
      * eg., volume, auto-load behaviour and so forth
      */
 
-    'autoLoad': false,        // enable automatic loading (otherwise .load() will be called on demand with .play(), the latter being nicer on bandwidth - if you want to .load yourself, you also can)
+    'autoLoad': true,        // enable automatic loading (otherwise .load() will be called on demand with .play(), the latter being nicer on bandwidth - if you want to .load yourself, you also can)
     'autoPlay': false,        // enable playing of file as soon as possible (much faster if "stream" is true)
     'from': null,             // position to start playback within a sound (msec), default = beginning
     'loops': 1,               // how many times to repeat the sound (position will wrap around to 0, setPosition() will break out of loop when >0)

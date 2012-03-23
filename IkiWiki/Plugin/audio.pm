@@ -85,9 +85,10 @@ sub preprocess (@) {
 			$attrs.=" $attr=\"$params{$attr}\"";
 		}
 	}
-    my $template = template("audio.tmpl");
+    my $template = template("360-player.tmpl");
     $template->param(AUDIO_URL => $audio); # <audio src=""></audio>
     $template->param(class => $params{class}); # el usuario final puede difinir su proprio `class`	
+    $template->param(TEXT => $params{text}); # el usuario final puede difinir su proprio `class`	
     # consiguir las etiquetas de las audios
     # $template = get_tags($audio,$template);
     #devolver html 
@@ -180,18 +181,21 @@ sub include_javascript ($;$) {
         '<script src="'.urlto('ikiwiki/360player.js', $page).
         '" type="text/javascript" charset="utf-8"></script>'. "\n" .
 	'<!-- special IE-only canvas fix -->'. "\n" .
-	'<!--[if IE]><script src="'urlto('ikiwiki/excanvas.js', $page). 
+	'<!--[if IE]><script src="'.urlto('ikiwiki/excanvas.js', $page). 
 	'" type="text/javascript" charset="utf-8"></script><![endif]-->' . "\n" .
 	'<link href="'.urlto('ikiwiki/360player.css', $page). 
 	'" type="text/css" rel="stylesheet">'. "\n" .
+	'<link href="'.urlto('ikiwiki/flashblock.css', $page). 
+	'" type="text/css" rel="stylesheet">'. "\n" .
 	'<script type="text/javascript">'. "\n" .
-	'    soundManager.url = '.urlto('ikiwiki/swf/', $page). ";\n".
+	'    soundManager.url = "/ikiwiki/swf/"'. ";\n".
 	'    soundManager.useHTML5Audio = true;'. "\n".
   	'    soundManager.useConsole = true;'."\n".
 	'    soundManager.preferFlash = false;'."\n".
-   	'    soundManager.debugMode = true;'."\n".
+   	'    soundManager.debugMode = false;'."\n".
+   	'    soundManager.autoLoad = true;'."\n".
+   	'    soundManager.useFlashBlock;'."\n".
 	'</script>';
-
 }
 
 sub get_metadata {
